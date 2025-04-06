@@ -16,12 +16,10 @@
       justify-content: space-between;
       height: 100vh;
     }
-
     h1 {
       font-size: 3em;
-      margin: 0.5em 0 0.2em 0;
+      margin: 0.5em 0;
     }
-
     .clock-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -31,7 +29,6 @@
       flex-grow: 1;
       align-content: center;
     }
-
     .clock {
       background-color: #222;
       border-radius: 12px;
@@ -39,18 +36,15 @@
       text-align: center;
       box-shadow: 0 0 10px #555;
     }
-
     .zone-label {
       font-size: 1.5em;
       margin-bottom: 10px;
     }
-
     .time-display {
       font-size: 2.5em;
       font-weight: bold;
       letter-spacing: 1px;
     }
-
     #date-display {
       font-size: 1.5em;
       margin: 1em 0;
@@ -76,8 +70,7 @@
 
     const clockContainer = document.getElementById("clocks");
     const dateDisplay = document.getElementById("date-display");
-
-    const baseTimes = {}; // per-timezone clock data
+    const baseOffsets = {};
 
     function createClockElements() {
       clockContainer.innerHTML = '';
@@ -92,41 +85,38 @@
       });
     }
 
-    async function fetchTimeForZone(zone) {
-      const id = zone.tz.replace(/\//g, '_');
-      const displayEl = document.getElementById(id);
-      try {
-        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        baseTimes[zone.tz] = {
-          label: zone.label,
-          tz: zone.tz,
-          datetime: new Date(data.datetime),
-          fetchTime: new Date()
-        };
-      } catch (error) {
-        console.error(`Error fetching ${zone.tz}:`, error);
-        displayEl.textContent = "Error loading";
-      }
+    async function fetchOffsets() {
+      const requests = timezones.map(async zone => {
+        const id = zone.tz.replace(/\//g, '_');
+        try {
+          const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+          if (!res.ok) throw new Error(res.status);
+          const data = await res.json();
+          baseOffsets[zone.tz] = data.utc_offset;
+        } catch (error) {
+          console.error(`Failed fetching offset for ${zone.tz}`, error);
+          document.getElementById(id).textContent = "Error loading";
+        }
+      });
+      await Promise.all(requests);
     }
 
-    async function fetchAllTimes() {
-      const fetches = timezones.map(zone => fetchTimeForZone(zone));
-      await Promise.all(fetches);
+    function getTimeWithOffset(offset) {
+      const now = new Date();
+      const [sign, hh, mm] = offset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
+      const offsetMinutes = parseInt(hh) * 60 + parseInt(mm);
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const tzTime = new Date(utcTime + (sign === "+" ? 1 : -1) * offsetMinutes * 60000);
+      return tzTime;
     }
 
     function updateClocks() {
-      const now = new Date();
       timezones.forEach(zone => {
         const id = zone.tz.replace(/\//g, '_');
-        const el = document.getElementById(id);
-        const base = baseTimes[zone.tz];
-        if (!base) return;
-
-        const elapsed = now - base.fetchTime;
-        const current = new Date(base.datetime.getTime() + elapsed);
-        el.textContent = current.toLocaleTimeString([], {
+        const offset = baseOffsets[zone.tz];
+        if (!offset) return;
+        const current = getTimeWithOffset(offset);
+        document.getElementById(id).textContent = current.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
@@ -134,29 +124,21 @@
         });
       });
 
-      const localDate = new Date();
-      const formattedDate = localDate.toLocaleDateString(undefined, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }).replace(",", "").replace(",", "");
-
-      // Custom formatting: Sunday · April 6 2025
-      const dateParts = formattedDate.split(" ");
-      const display = `${dateParts[0]} · ${dateParts[1]} ${dateParts[2]}, ${dateParts[3]}`;
-      dateDisplay.textContent = display;
+      const dateNow = new Date();
+      dateDisplay.textContent = dateNow.toLocaleDateString(undefined, {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+      }).replace(",", " ·");
     }
 
-    async function initClocks() {
+    async function init() {
       createClockElements();
-      await fetchAllTimes();
+      await fetchOffsets();
       updateClocks();
       setInterval(updateClocks, 1000);
     }
 
-    initClocks();
-    setInterval(initClocks, 6 * 60 * 60 * 1000); // Re-fetch every 6 hours
+    init();
+    setInterval(fetchOffsets, 6 * 60 * 60 * 1000); // refresh offsets every 6 hours
   </script>
 </body>
 </html>
