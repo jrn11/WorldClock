@@ -55,6 +55,7 @@
       font-size: 1.5em;
       margin: 1em 0;
       text-align: center;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -76,6 +77,8 @@
     const clockContainer = document.getElementById("clocks");
     const dateDisplay = document.getElementById("date-display");
 
+    const baseTimes = {}; // per-timezone clock data
+
     function createClockElements() {
       clockContainer.innerHTML = '';
       timezones.forEach(zone => {
@@ -89,68 +92,71 @@
       });
     }
 
-    async function fetchBaseTimes() {
-      const baseTimes = {};
-      const fetches = timezones.map(async zone => {
-        const id = zone.tz.replace(/\//g, '_');
-        const displayEl = document.getElementById(id);
-        try {
-          const response = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          baseTimes[zone.tz] = {
-            datetime: new Date(data.datetime),
-            fetchTime: new Date()
-          };
-        } catch (error) {
-          console.error(`Error fetching ${zone.tz}:`, error);
-          displayEl.textContent = "Error loading";
-        }
-      });
-
-      await Promise.all(fetches);
-      return baseTimes;
+    async function fetchTimeForZone(zone) {
+      const id = zone.tz.replace(/\//g, '_');
+      const displayEl = document.getElementById(id);
+      try {
+        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        baseTimes[zone.tz] = {
+          label: zone.label,
+          tz: zone.tz,
+          datetime: new Date(data.datetime),
+          fetchTime: new Date()
+        };
+      } catch (error) {
+        console.error(`Error fetching ${zone.tz}:`, error);
+        displayEl.textContent = "Error loading";
+      }
     }
 
-    function startClock(baseTimes) {
-      setInterval(() => {
-        const now = new Date();
+    async function fetchAllTimes() {
+      const fetches = timezones.map(zone => fetchTimeForZone(zone));
+      await Promise.all(fetches);
+    }
 
-        // Update clocks
-        timezones.forEach(zone => {
-          const id = zone.tz.replace(/\//g, '_');
-          const el = document.getElementById(id);
-          const base = baseTimes[zone.tz];
-          if (!base) return;
-          const elapsed = now - base.fetchTime;
-          const displayTime = new Date(base.datetime.getTime() + elapsed);
-          el.textContent = displayTime.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          });
-        });
+    function updateClocks() {
+      const now = new Date();
+      timezones.forEach(zone => {
+        const id = zone.tz.replace(/\//g, '_');
+        const el = document.getElementById(id);
+        const base = baseTimes[zone.tz];
+        if (!base) return;
 
-        // Update date (in local time)
-        const localDate = now.toLocaleDateString(undefined, {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
+        const elapsed = now - base.fetchTime;
+        const current = new Date(base.datetime.getTime() + elapsed);
+        el.textContent = current.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
         });
-        dateDisplay.textContent = localDate;
-      }, 1000);
+      });
+
+      const localDate = new Date();
+      const formattedDate = localDate.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).replace(",", "").replace(",", "");
+
+      // Custom formatting: Sunday · April 6 2025
+      const dateParts = formattedDate.split(" ");
+      const display = `${dateParts[0]} · ${dateParts[1]} ${dateParts[2]}, ${dateParts[3]}`;
+      dateDisplay.textContent = display;
     }
 
     async function initClocks() {
       createClockElements();
-      const baseTimes = await fetchBaseTimes();
-      startClock(baseTimes);
+      await fetchAllTimes();
+      updateClocks();
+      setInterval(updateClocks, 1000);
     }
 
     initClocks();
-    setInterval(initClocks, 6 * 60 * 60 * 1000); // Refresh every 6 hours
+    setInterval(initClocks, 6 * 60 * 60 * 1000); // Re-fetch every 6 hours
   </script>
 </body>
 </html>
