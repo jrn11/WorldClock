@@ -55,80 +55,82 @@
 <body>
   <h1>World Clock</h1>
   <div class="clock-grid" id="clocks"></div>
+<script>
+  const timezones = [
+    { label: "Zulu (UTC)", tz: "Etc/UTC" },
+    { label: "Pacific", tz: "America/Los_Angeles" },
+    { label: "Mountain", tz: "America/Denver" },
+    { label: "Central", tz: "America/Chicago" },
+    { label: "Eastern", tz: "America/New_York" },
+    { label: "Atlantic", tz: "America/Halifax" }
+  ];
 
-  <script>
-    const timezones = [
-      { label: "Zulu (UTC)", tz: "Etc/UTC" },
-      { label: "Pacific", tz: "America/Los_Angeles" },
-      { label: "Mountain", tz: "America/Denver" },
-      { label: "Central", tz: "America/Chicago" },
-      { label: "Eastern", tz: "America/New_York" },
-      { label: "Atlantic", tz: "America/Halifax" }
-    ];
+  const clockContainer = document.getElementById("clocks");
 
-    const clockContainer = document.getElementById("clocks");
+  function createClockElements() {
+    clockContainer.innerHTML = '';
+    timezones.forEach(zone => {
+      const div = document.createElement("div");
+      div.className = "clock";
+      div.innerHTML = `
+        <div class="zone-label">${zone.label}</div>
+        <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
+      `;
+      clockContainer.appendChild(div);
+    });
+  }
 
-    function createClockElements() {
-      clockContainer.innerHTML = '';
+  async function fetchBaseTimes() {
+    const baseTimes = {};
+    const fetches = timezones.map(async zone => {
+      const id = zone.tz.replace(/\//g, '_');
+      const displayEl = document.getElementById(id);
+      try {
+        const response = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        baseTimes[zone.tz] = {
+          datetime: new Date(data.datetime),
+          fetchTime: new Date()
+        };
+      } catch (error) {
+        console.error(`Error fetching ${zone.tz}:`, error);
+        displayEl.textContent = "Error loading";
+      }
+    });
+
+    await Promise.all(fetches);
+    return baseTimes;
+  }
+
+  function startClock(baseTimes) {
+    setInterval(() => {
+      const now = new Date();
       timezones.forEach(zone => {
-        const div = document.createElement("div");
-        div.className = "clock";
-        div.innerHTML = `
-          <div class="zone-label">${zone.label}</div>
-          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
-        `;
-        clockContainer.appendChild(div);
-      });
-    }
-
-    async function fetchBaseTimes() {
-      const baseTimes = {};
-      const fetches = timezones.map(async zone => {
-        try {
-          const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
-          const data = await res.json();
-          baseTimes[zone.tz] = {
-            datetime: new Date(data.datetime),
-            fetchTime: new Date()
-          };
-        } catch (e) {
-          console.error(`Failed to fetch ${zone.tz}`, e);
-        }
-      });
-      await Promise.all(fetches);
-      return baseTimes;
-    }
-
-    function startClock(baseTimes) {
-      setInterval(() => {
-        const now = new Date();
-        timezones.forEach(zone => {
-          const id = zone.tz.replace(/\//g, '_');
-          const el = document.getElementById(id);
-          const base = baseTimes[zone.tz];
-          if (!base) {
-            el.textContent = "Error";
-            return;
-          }
-          const elapsed = now - base.fetchTime;
-          const displayTime = new Date(base.datetime.getTime() + elapsed);
-          el.textContent = displayTime.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          });
+        const id = zone.tz.replace(/\//g, '_');
+        const el = document.getElementById(id);
+        const base = baseTimes[zone.tz];
+        if (!base) return;
+        const elapsed = now - base.fetchTime;
+        const displayTime = new Date(base.datetime.getTime() + elapsed);
+        el.textContent = displayTime.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
         });
-      }, 1000);
-    }
+      });
+    }, 1000);
+  }
 
-    async function initClocks() {
-      createClockElements();
-      const baseTimes = await fetchBaseTimes();
-      startClock(baseTimes);
-    }
+  async function initClocks() {
+    createClockElements();
+    const baseTimes = await fetchBaseTimes();
+    startClock(baseTimes);
+  }
 
-    initClocks();
-    setInterval(initClocks, 6 * 60 * 60 * 1000); // Refresh every 6 hours
-  </script>
+  initClocks();
+  setInterval(initClocks, 6 * 60 * 60 * 1000); // Refresh every 6 hours
+</script>
 </body>
 </html>
