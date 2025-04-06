@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>World Clock</title>
+  <style>
+    html, body {
+      background-color: black;
+      color: white;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 3em;
+      margin-top: 0.2em;
+      margin-bottom: 0.5em;
+    }
+
+    .clock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      width: 90%;
+      max-width: 1600px;
+    }
+
+    .clock {
+      background-color: #222;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 0 10px #555;
+    }
+
+    .zone-label {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+
+    .time-display {
+      font-size: 2.5em;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <h1>World Clock</h1>
+  <div class="clock-grid" id="clocks"></div>
+
+  <script>
+    const timezones = [
+      { label: "Zulu (UTC)", tz: "Etc/UTC" },
+      { label: "Pacific", tz: "America/Los_Angeles" },
+      { label: "Mountain", tz: "America/Denver" },
+      { label: "Central", tz: "America/Chicago" },
+      { label: "Eastern", tz: "America/New_York" },
+      { label: "Atlantic", tz: "America/Halifax" }
+    ];
+
+    const clockContainer = document.getElementById("clocks");
+
+    function createClockElements() {
+      clockContainer.innerHTML = '';
+      timezones.forEach(zone => {
+        const div = document.createElement("div");
+        div.className = "clock";
+        div.innerHTML = `
+          <div class="zone-label">${zone.label}</div>
+          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
+        `;
+        clockContainer.appendChild(div);
+      });
+    }
+
+    async function fetchBaseTimes() {
+      const baseTimes = {};
+      const fetches = timezones.map(async zone => {
+        try {
+          const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+          const data = await res.json();
+          baseTimes[zone.tz] = {
+            datetime: new Date(data.datetime),
+            fetchTime: new Date()
+          };
+        } catch (e) {
+          console.error(`Failed to fetch ${zone.tz}`, e);
+        }
+      });
+      await Promise.all(fetches);
+      return baseTimes;
+    }
+
+    function startClock(baseTimes) {
+      setInterval(() => {
+        const now = new Date();
+        timezones.forEach(zone => {
+          const id = zone.tz.replace(/\//g, '_');
+          const el = document.getElementById(id);
+          const base = baseTimes[zone.tz];
+          if (!base) {
+            el.textContent = "Error";
+            return;
+          }
+          const elapsed = now - base.fetchTime;
+          const displayTime = new Date(base.datetime.getTime() + elapsed);
+          el.textContent = displayTime.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+        });
+      }, 1000);
+    }
+
+    async function initClocks() {
+      createClockElements();
+      const baseTimes = await fetchBaseTimes();
+      startClock(baseTimes);
+    }
+
+    initClocks();
+    setInterval(initClocks, 6 * 60 * 60 * 1000); // Refresh every 6 hours
+  </script>
+</body>
+</html>
