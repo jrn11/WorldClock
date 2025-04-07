@@ -61,76 +61,79 @@
   <div id=\"date-display\"></div>
   <div class=\"clock-grid\" id=\"clocks\"></div>
 
-  <script>
-    const timezones = [
-      { label: \"Zulu (UTC)\", tz: \"Etc/UTC\" },
-      { label: \"Pacific\", tz: \"America/Los_Angeles\" },
-      { label: \"Mountain\", tz: \"America/Denver\" },
-      { label: \"Central\", tz: \"America/Chicago\" },
-      { label: \"Eastern\", tz: \"America/New_York\" },
-      { label: \"Atlantic\", tz: \"America/Halifax\" }
-    ];
+<script>
+const timezones = [
+  { label: "Zulu (UTC)", tz: "Etc/UTC" },
+  { label: "Pacific", tz: "America/Los_Angeles" },
+  { label: "Mountain", tz: "America/Denver" },
+  { label: "Central", tz: "America/Chicago" },
+  { label: "Eastern", tz: "America/New_York" },
+  { label: "Atlantic", tz: "America/Halifax" }
+];
 
-    function createClockElements() {
-      document.getElementById(\"clocks\").innerHTML = timezones.map(zone => `
-        <div class=\"clock\">
-          <div class=\"zone-label\">${zone.label}</div>
-          <div class=\"time-display\" id=\"${zone.tz.replace(/\//g, '_')}\">Loading...</div>
-        </div>
-      `).join('');
+function createClockElements() {
+  document.getElementById("clocks").innerHTML = timezones.map(zone => `
+    <div class="clock">
+      <div class="zone-label">${zone.label}</div>
+      <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
+    </div>
+  `).join('');
+}
+
+async function fetchWithRetries(url, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, {cache: 'no-cache'});
+      if (res.ok) return await res.json();
+    } catch (e) {
+      if (attempt === retries - 1) throw e;
     }
+  }
+  throw new Error('Max retries exceeded');
+}
 
-    async function fetchWithRetries(url, retries = 3) {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) return await res.json();
-        } catch (e) {}
-      }
-      throw new Error('Max retries exceeded');
+async function fetchOffsets() {
+  const offsets = {};
+  await Promise.all(timezones.map(async zone => {
+    try {
+      const data = await fetchWithRetries(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+      offsets[zone.tz] = data.utc_offset;
+    } catch (error) {
+      console.error(`Error fetching offset for ${zone.tz}:`, error);
+      offsets[zone.tz] = null;
     }
+  }));
+  return offsets;
+}
 
-    async function fetchOffsets() {
-      const offsets = {};
-      await Promise.all(timezones.map(async zone => {
-        try {
-          const data = await fetchWithRetries(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
-          offsets[zone.tz] = data.utc_offset;
-        } catch {
-          offsets[zone.tz] = null;
-        }
-      }));
-      return offsets;
+function updateClocks(offsets) {
+  const now = new Date();
+  timezones.forEach(zone => {
+    const el = document.getElementById(zone.tz.replace(/\//g, '_'));
+    const offset = offsets[zone.tz];
+    if (!offset) {
+      el.textContent = "--:--:--";
+      return;
     }
+    const [sign, hh, mm] = offset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
+    const offsetMinutes = parseInt(hh) * 60 + parseInt(mm);
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const tzTime = new Date(utc + (sign === '+' ? 1 : -1) * offsetMinutes * 60000);
+    el.textContent = tzTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  });
 
-    function updateClocks(offsets) {
-      timezones.forEach(zone => {
-        const el = document.getElementById(zone.tz.replace(/\//g, '_'));
-        if (!offsets[zone.tz]) {
-          el.textContent = \"--:--:--\";
-          return;
-        }
-        const now = new Date();
-        const [sign, h, m] = offsets[zone.tz].match(/([+-])(\d{2}):(\d{2})/).slice(1);
-        const offsetMinutes = (parseInt(h) * 60 + parseInt(m)) * (sign === '+' ? 1 : -1);
-        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-        const tzDate = new Date(utc + offsetMinutes * 60000);
-        el.textContent = tzDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-      });
+  const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
+}
 
-      const dateNow = new Date();
-      const dateStr = dateNow.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-      document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
-    }
+async function init() {
+  createClockElements();
+  const offsets = await fetchOffsets();
+  updateClocks(offsets);
+  setInterval(() => updateClocks(offsets), 1000);
+}
 
-    async function init() {
-      createClockElements();
-      const offsets = await fetchOffsets();
-      updateClocks(offsets);
-      setInterval(() => updateClocks(offsets), 1000);
-    }
-
-    init();
-  </script>
+init();
+</script>
 </body>
 </html>
