@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
->
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="refresh" content="300">
@@ -87,6 +86,7 @@
       display: inline-block;
       white-space: nowrap;
       animation: scroll-left 90s linear infinite;
+      will-change: transform;
     }
 
     @keyframes scroll-left {
@@ -209,24 +209,29 @@
       ];
 
       let displayData = [];
-      for (const group of weatherCities) {
-        const groupText = [];
-        for (const city of group.cities) {
-          try {
-            const { city: cityName, temp_C, condition } = await fetchWeather(city);
-            const symbol = condition.toLowerCase().includes("snow") ? "❄️" :
-                           condition.toLowerCase().includes("rain") ? "🌧️" :
-                           condition.toLowerCase().includes("cloud") ? "☁️" :
-                           condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
-            groupText.push(`${symbol} ${cityName}: ${Math.round(temp_C)}°C`);
-          } catch {
-            groupText.push(`⚠️ ${city}: N/A`);
+      try {
+        for (const group of weatherCities) {
+          const groupText = [];
+          for (const city of group.cities) {
+            try {
+              const { city: cityName, temp_C, condition } = await fetchWeather(city);
+              const symbol = condition.toLowerCase().includes("snow") ? "❄️" :
+                             condition.toLowerCase().includes("rain") ? "🌧️" :
+                             condition.toLowerCase().includes("cloud") ? "☁️" :
+                             condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
+              groupText.push(`${symbol} ${cityName}: ${Math.round(temp_C)}°C`);
+            } catch {
+              groupText.push(`⚠️ ${city}: N/A`);
+            }
           }
+          displayData.push(`${group.province}: ` + groupText.join("   |   "));
         }
-        displayData.push(`${group.province}: ` + groupText.join("   |   "));
+        const weatherContent = document.getElementById("weather-content");
+        weatherContent.innerHTML = displayData.join("   ||   ") + "   ||   " + displayData.join("   ||   ");
+      } catch (e) {
+        document.getElementById("weather-content").textContent = "Error loading weather...";
+        console.error("Weather ribbon failed:", e);
       }
-      const weatherContent = document.getElementById("weather-content");
-      weatherContent.innerHTML = displayData.join("   ||   ") + "   ||   " + displayData.join("   ||   ");
     }
 
     async function init() {
