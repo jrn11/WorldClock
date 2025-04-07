@@ -108,7 +108,7 @@
     #info-content {
       display: inline-block;
       white-space: nowrap;
-      animation: scroll-left 160s linear infinite;
+      animation: scroll-left 210s linear infinite;
       will-change: transform;
     }
 
@@ -225,7 +225,7 @@
                        condition.toLowerCase().includes("rain") ? "🌧️" :
                        condition.toLowerCase().includes("cloud") ? "☁️" :
                        condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
-          return `${icon} ${city}: ${temp}°C`;
+          return `${icon}  ${city}:  ${temp}°C`;
         }));
         const content = results.join("   |   ");
         document.getElementById("info-content").innerHTML = `${content}     |       |     ${content}     |       |     ${content}`;
