@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang=\"en\">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="300">
+  <meta charset=\"UTF-8\">
+  <meta http-equiv=\"refresh\" content=\"300\">
   <title>World Clock</title>
   <style>
     html, body {
@@ -16,12 +16,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-    }
-
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 0.3em;
-      letter-spacing: 3px;
     }
 
     .clock-grid {
@@ -52,32 +46,36 @@
     }
 
     #date-display {
-      font-size: 1.8rem;
-      margin-top: 0.6em;
-      letter-spacing: 2px;
-      opacity: 0.7;
+      font-size: 2.2rem;
+      margin-bottom: 0.8em;
+      padding: 12px 20px;
+      background-color: #14203a;
+      border-radius: 10px;
+      letter-spacing: 4px;
+      opacity: 0.9;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
     }
   </style>
 </head>
 <body>
-  <div class="clock-grid" id="clocks"></div>
-  <div id="date-display"></div>
+  <div id=\"date-display\"></div>
+  <div class=\"clock-grid\" id=\"clocks\"></div>
 
   <script>
     const timezones = [
-      { label: "Zulu (UTC)", tz: "Etc/UTC" },
-      { label: "Pacific", tz: "America/Los_Angeles" },
-      { label: "Mountain", tz: "America/Denver" },
-      { label: "Central", tz: "America/Chicago" },
-      { label: "Eastern", tz: "America/New_York" },
-      { label: "Atlantic", tz: "America/Halifax" }
+      { label: \"Zulu (UTC)\", tz: \"Etc/UTC\" },
+      { label: \"Pacific\", tz: \"America/Los_Angeles\" },
+      { label: \"Mountain\", tz: \"America/Denver\" },
+      { label: \"Central\", tz: \"America/Chicago\" },
+      { label: \"Eastern\", tz: \"America/New_York\" },
+      { label: \"Atlantic\", tz: \"America/Halifax\" }
     ];
 
     function createClockElements() {
-      document.getElementById("clocks").innerHTML = timezones.map(zone => `
-        <div class="clock">
-          <div class="zone-label">${zone.label}</div>
-          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
+      document.getElementById(\"clocks\").innerHTML = timezones.map(zone => `
+        <div class=\"clock\">
+          <div class=\"zone-label\">${zone.label}</div>
+          <div class=\"time-display\" id=\"${zone.tz.replace(/\//g, '_')}\">Loading...</div>
         </div>
       `).join('');
     }
@@ -109,7 +107,7 @@
       timezones.forEach(zone => {
         const el = document.getElementById(zone.tz.replace(/\//g, '_'));
         if (!offsets[zone.tz]) {
-          el.textContent = "--:--:--";
+          el.textContent = \"--:--:--\";
           return;
         }
         const now = new Date();
@@ -121,7 +119,7 @@
       });
 
       const dateNow = new Date();
-      const dateStr = dateNow.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+      const dateStr = dateNow.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
       document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
     }
 
