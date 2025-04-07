@@ -84,11 +84,12 @@
 
     #weather-content {
       display: inline-block;
-      animation: scroll-left 10s linear infinite;
+      padding-left: 100%;
+      animation: scroll-left 20s linear infinite;
     }
 
     @keyframes scroll-left {
-      0% { transform: translateX(100%); }
+      0% { transform: translateX(0%); }
       100% { transform: translateX(-100%); }
     }
   </style>
@@ -182,13 +183,21 @@
     }
 
     function updateWeatherRibbon() {
-      const cities = [
-        { name: "Winnipeg", temp: "-5°C" },
-        { name: "Chicago", temp: "2°C" },
-        { name: "New York", temp: "5°C" },
-        { name: "Los Angeles", temp: "15°C" }
-      ];
-      const content = cities.map(c => `${c.name}: ${c.temp}`).join(" | ");
+      const provinces = {
+        BC: ["Vancouver"],
+        AB: ["Calgary", "Edmonton"],
+        SK: ["Saskatoon", "Regina"],
+        MB: ["Winnipeg", "Thompson", "Churchill"],
+        ON: ["Pickle Lake", "Thunder Bay", "Toronto", "Ottawa"],
+        NS: ["Halifax"],
+        NU: ["Iqaluit", "Igloolik", "Arctic Bay", "Rankin Inlet"],
+        NT: ["Yellowknife"]
+      };
+
+      const content = Object.entries(provinces).map(([province, cities]) => {
+        return `${province}: ` + cities.map(city => `☁️ ${city}: -5°C`).join(" | ");
+      }).join(" || ");
+
       document.getElementById("weather-content").textContent = content;
     }
 
