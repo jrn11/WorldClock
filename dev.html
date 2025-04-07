@@ -7,8 +7,6 @@
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
     html, body {
-      background-color: #0b0f19;
-      color: #e0e6f0;
       font-family: sans-serif;
       margin: 0;
       padding: 0;
@@ -18,6 +16,17 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      transition: background-color 0.5s ease, color 0.5s ease;
+    }
+
+    body.day-mode {
+      background-color: #f5f5f5;
+      color: #111;
+    }
+
+    body.night-mode {
+      background-color: #0b0f19;
+      color: #e0e6f0;
     }
 
     .clock-grid {
@@ -29,11 +38,17 @@
     }
 
     .clock {
-      background-color: #1b2436;
+      background-color: rgba(255, 255, 255, 0.9);
+      color: #000;
       border-radius: 12px;
       padding: 20px;
       text-align: center;
-      box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    }
+
+    body.night-mode .clock {
+      background-color: rgba(27, 36, 54, 0.8);
+      color: #e0e6f0;
     }
 
     .zone-label {
@@ -51,11 +66,17 @@
       font-size: 2.2rem;
       margin-bottom: 0.8em;
       padding: 12px 20px;
-      background-color: #14203a;
+      background-color: rgba(220, 220, 220, 0.9);
       border-radius: 10px;
       letter-spacing: 4px;
-      opacity: 0.9;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+      opacity: 0.95;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      color: #000;
+    }
+
+    body.night-mode #date-display {
+      background-color: rgba(20, 32, 58, 0.8);
+      color: #e0e6f0;
     }
 
     #countdown {
@@ -68,6 +89,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
       z-index: 1001;
+      color: #e0e6f0;
     }
 
     .info-ribbon {
@@ -184,6 +206,10 @@
         const mins = Math.floor((diff % 3600000) / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
         countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        const isDay = now.getHours() >= 8 && now.getHours() < 20;
+        document.body.classList.toggle('day-mode', isDay);
+        document.body.classList.toggle('night-mode', !isDay);
       }
     }
 
@@ -201,7 +227,8 @@
                        condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
           return `${icon} ${city}: ${temp}°C`;
         }));
-        document.getElementById("info-content").textContent = results.join("   |   ") + "   |   " + results.join("   |   ");
+        const content = results.join("   |   ");
+        document.getElementById("info-content").innerHTML = `${content}   |     |   ${content}   |     |   ${content}`;
       } catch (err) {
         document.getElementById("info-content").textContent = "Error loading weather.";
         console.error(err);
