@@ -16,6 +16,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      position: relative;
     }
 
     .clock-grid {
@@ -55,11 +56,20 @@
       opacity: 0.9;
       box-shadow: 0 4px 12px rgba(0,0,0,0.7);
     }
+
+    #countdown {
+      position: absolute;
+      bottom: 10px;
+      right: 20px;
+      font-size: 1.6rem;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
   <div id="date-display"></div>
   <div class="clock-grid" id="clocks"></div>
+  <div id="countdown"></div>
 
   <script>
     const timezones = [
@@ -124,6 +134,22 @@
 
       const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
       document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
+
+      const countdownEl = document.getElementById('countdown');
+      const centralOffset = offsets["America/Chicago"];
+      if (centralOffset) {
+        const [sign, hh, mm] = centralOffset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
+        const offsetMinutes = (parseInt(hh) * 60 + parseInt(mm)) * (sign === '+' ? 1 : -1);
+        const centralNow = new Date(utc + offsetMinutes * 60000);
+        const nextTarget = new Date(centralNow);
+        nextTarget.setHours(centralNow.getHours() < 8 || centralNow.getHours() >= 20 ? 8 : 20, 0, 0, 0);
+        if (centralNow.getHours() >= 20) nextTarget.setDate(nextTarget.getDate() + 1);
+        const diff = nextTarget - centralNow;
+        const hrs = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
     }
 
     async function init() {
