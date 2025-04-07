@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <meta http-equiv="refresh" content="300">
   <title>World Clock</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
     html, body {
-      background-color: #0b0f19;
-      color: #e0e6f0;
       font-family: sans-serif;
       margin: 0;
       padding: 0;
@@ -17,6 +16,17 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      transition: background-color 0.5s ease, color 0.5s ease;
+    }
+
+    body.day-mode {
+      background-color: #f5f5f5;
+      color: #111;
+    }
+
+    body.night-mode {
+      background-color: #0b0f19;
+      color: #e0e6f0;
     }
 
     .clock-grid {
@@ -28,11 +38,17 @@
     }
 
     .clock {
-      background-color: #1b2436;
+      background-color: rgba(255, 255, 255, 0.9);
+      color: #000;
       border-radius: 12px;
       padding: 20px;
       text-align: center;
-      box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    }
+
+    body.night-mode .clock {
+      background-color: rgba(27, 36, 54, 0.8);
+      color: #e0e6f0;
     }
 
     .zone-label {
@@ -50,19 +66,55 @@
       font-size: 2.2rem;
       margin-bottom: 0.8em;
       padding: 12px 20px;
-      background-color: #14203a;
+      background-color: rgba(220, 220, 220, 0.9);
       border-radius: 10px;
       letter-spacing: 4px;
-      opacity: 0.9;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+      opacity: 0.95;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      color: #000;
+    }
+
+    body.night-mode #date-display {
+      background-color: rgba(20, 32, 58, 0.8);
+      color: #e0e6f0;
     }
 
     #countdown {
-      position: absolute;
-      bottom: 10px;
+      position: fixed;
+      bottom: 40px;
       right: 20px;
       font-size: 1.6rem;
-      opacity: 0.8;
+      background-color: #1b2436;
+      padding: 8px 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      z-index: 1001;
+      color: #e0e6f0;
+    }
+
+    .weather-ribbon {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #14203a;
+      overflow: hidden;
+      white-space: nowrap;
+      padding: 8px;
+      z-index: 1000;
+      color: #fff;
+    }
+
+    #weather-content {
+      display: inline-block;
+      white-space: nowrap;
+      animation: scroll-left 90s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes scroll-left {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
@@ -70,6 +122,9 @@
   <div id="date-display"></div>
   <div class="clock-grid" id="clocks"></div>
   <div id="countdown"></div>
+  <div class="weather-ribbon">
+    <div id="weather-content">Loading weather...</div>
+  </div>
 
   <script>
     const timezones = [
@@ -80,6 +135,17 @@
       { label: "Eastern", tz: "America/New_York" },
       { label: "Atlantic", tz: "America/Halifax" }
     ];
+
+    const stationMap = {
+      "BC": { "Vancouver": "CWWX" },
+      "AB": { "Calgary": "CYYC", "Edmonton": "CYEG" },
+      "SK": { "Saskatoon": "CYXE", "Regina": "CYQR" },
+      "MB": { "Winnipeg": "CYWG", "Thompson": "CYTH", "Churchill": "CYYQ" },
+      "ON": { "Pickle Lake": "CYPL", "Thunder Bay": "CYQT", "Toronto": "CYYZ", "Ottawa": "CYOW" },
+      "NS": { "Halifax": "CYHZ" },
+      "NU": { "Iqaluit": "CYFB", "Igloolik": "CYGT", "Arctic Bay": "CJX7", "Rankin Inlet": "CYRT" },
+      "NT": { "Yellowknife": "CYZF" }
+    };
 
     function createClockElements() {
       document.getElementById("clocks").innerHTML = timezones.map(zone => `
@@ -102,13 +168,51 @@
       }
     }
 
+    async function fetchWeatherByStationId(stationId) {
+      const url = `https://api.weather.gc.ca/collections/current-observations/items?f=json&STATION_ID=${stationId}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed for ${stationId}`);
+      const data = await res.json();
+      if (!data.features.length) throw new Error(`No data for ${stationId}`);
+      const item = data.features[0].properties;
+      return {
+        temp: Math.round(item.temperature.value),
+        condition: item.weather_summary_en || "Unknown"
+      };
+    }
+
+    async function updateWeatherRibbon() {
+      const display = [];
+      try {
+        for (const [prov, cityMap] of Object.entries(stationMap)) {
+          const parts = [];
+          for (const [city, stationId] of Object.entries(cityMap)) {
+            try {
+              const { temp, condition } = await fetchWeatherByStationId(stationId);
+              const symbol = condition.toLowerCase().includes("snow") ? "❄️" :
+                             condition.toLowerCase().includes("rain") ? "🌧️" :
+                             condition.toLowerCase().includes("cloud") ? "☁️" :
+                             condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
+              parts.push(`${symbol} ${city}: ${temp}°C`);
+            } catch {
+              parts.push(`⚠️ ${city}: N/A`);
+            }
+          }
+          display.push(`${prov}: ${parts.join("   |   ")}`);
+        }
+        document.getElementById("weather-content").textContent = display.join("   ||   ") + "   ||   " + display.join("   ||   ");
+      } catch (err) {
+        console.error("Weather fetch failed:", err);
+        document.getElementById("weather-content").textContent = "Error loading weather...";
+      }
+    }
+
     async function loadAllTimes() {
       const promises = timezones.map(zone => fetchTimeForZone(zone.tz));
       const results = await Promise.all(promises);
-
-      results.forEach((time, index) => {
+      results.forEach((time, i) => {
         if (time) {
-          timezones[index].currentTime = time;
+          timezones[i].currentTime = time;
         } else {
           setTimeout(() => loadAllTimes(), 5000);
         }
@@ -122,7 +226,13 @@
           el.textContent = "Loading...";
           return;
         }
-        el.textContent = zone.currentTime.toLocaleTimeString('en-US', { timeZone: zone.tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        el.textContent = zone.currentTime.toLocaleTimeString('en-US', {
+          timeZone: zone.tz,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
       });
 
       const centralZone = timezones.find(z => z.tz === "America/Chicago");
@@ -142,6 +252,10 @@
         const mins = Math.floor((diff % 3600000) / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
         countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        const isDay = centralTime.getHours() >= 6 && centralTime.getHours() < 20;
+        document.body.classList.toggle('day-mode', isDay);
+        document.body.classList.toggle('night-mode', !isDay);
       }
 
       timezones.forEach(zone => {
@@ -154,9 +268,11 @@
     async function init() {
       createClockElements();
       await loadAllTimes();
+      await updateWeatherRibbon();
       updateClocks();
       setInterval(updateClocks, 1000);
       setInterval(loadAllTimes, 300000);
+      setInterval(updateWeatherRibbon, 300000);
     }
 
     init();
