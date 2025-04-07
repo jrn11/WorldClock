@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="300">
+  <title>World Clock</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    html, body {
+      background-color: #0b0f19;
+      color: #e0e6f0;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .clock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      width: 90%;
+      max-width: 1400px;
+    }
+
+    .clock {
+      background-color: #1b2436;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+    }
+
+    .zone-label {
+      font-size: 1.4rem;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+
+    .time-display {
+      font-size: 2.8rem;
+      font-weight: bold;
+    }
+
+    #date-display {
+      font-size: 2.2rem;
+      margin-bottom: 0.8em;
+      padding: 12px 20px;
+      background-color: #14203a;
+      border-radius: 10px;
+      letter-spacing: 4px;
+      opacity: 0.9;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    }
+
+    #countdown {
+      position: absolute;
+      bottom: 40px;
+      right: 20px;
+      font-size: 1.6rem;
+      opacity: 0.8;
+    }
+
+    .weather-ribbon {
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      background-color: #14203a;
+      color: #fff;
+      font-size: 1.2rem;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      padding: 8px;
+      z-index: 10;
+    }
+
+    #weather-content {
+      display: inline-block;
+      animation: scroll-left 30s linear infinite;
+    }
+
+    @keyframes scroll-left {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="date-display"></div>
+  <div class="clock-grid" id="clocks"></div>
+  <div id="countdown"></div>
+  <div class="weather-ribbon">
+    <div id="weather-content">Loading weather...</div>
+  </div>
+
+  <script>
+    const timezones = [
+      { label: "Zulu (UTC)", tz: "Etc/UTC" },
+      { label: "Pacific", tz: "America/Los_Angeles" },
+      { label: "Mountain", tz: "America/Denver" },
+      { label: "Central", tz: "America/Chicago" },
+      { label: "Eastern", tz: "America/New_York" },
+      { label: "Atlantic", tz: "America/Halifax" }
+    ];
+
+    function createClockElements() {
+      document.getElementById("clocks").innerHTML = timezones.map(zone => `
+        <div class="clock">
+          <div class="zone-label">${zone.label}</div>
+          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
+        </div>
+      `).join('');
+    }
+
+    async function fetchTimeForZone(zone) {
+      try {
+        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone}`);
+        if (!res.ok) throw new Error(`Failed to fetch ${zone}`);
+        const data = await res.json();
+        return new Date(data.datetime);
+      } catch (error) {
+        console.error(`Error fetching ${zone}:`, error);
+        return null;
+      }
+    }
+
+    async function loadAllTimes() {
+      const promises = timezones.map(zone => fetchTimeForZone(zone.tz));
+      const results = await Promise.all(promises);
+
+      results.forEach((time, index) => {
+        if (time) {
+          timezones[index].currentTime = time;
+        } else {
+          setTimeout(() => loadAllTimes(), 5000);
+        }
+      });
+    }
+
+    function updateClocks() {
+      timezones.forEach(zone => {
+        const el = document.getElementById(zone.tz.replace(/\//g, '_'));
+        if (!zone.currentTime) {
+          el.textContent = "Loading...";
+          return;
+        }
+        el.textContent = zone.currentTime.toLocaleTimeString('en-US', { timeZone: zone.tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      });
+
+      const centralZone = timezones.find(z => z.tz === "America/Chicago");
+      const centralTime = centralZone.currentTime;
+      if (centralTime) {
+        const dateStr = centralTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
+
+        const countdownEl = document.getElementById('countdown');
+        let nextTarget = new Date(centralTime);
+        nextTarget.setHours(centralTime.getHours() < 8 || centralTime.getHours() >= 20 ? 8 : 20, 0, 0, 0);
+        if (centralTime.getHours() >= 8 && centralTime.getHours() < 20) nextTarget.setHours(20);
+        if (centralTime >= nextTarget) nextTarget.setDate(nextTarget.getDate() + 1);
+
+        const diff = nextTarget - centralTime;
+        const hrs = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      timezones.forEach(zone => {
+        if (zone.currentTime) {
+          zone.currentTime.setSeconds(zone.currentTime.getSeconds() + 1);
+        }
+      });
+    }
+
+    function updateWeatherRibbon() {
+      const cities = [
+        { name: "Winnipeg", temp: "-5°C" },
+        { name: "Chicago", temp: "2°C" },
+        { name: "New York", temp: "5°C" },
+        { name: "Los Angeles", temp: "15°C" }
+      ];
+      const weatherEl = document.getElementById("weather-content");
+      const content = cities.map(c => `${c.name}: ${c.temp}`).join(" | ");
+      weatherEl.textContent = content;
+    }
+
+    async function init() {
+      createClockElements();
+      await loadAllTimes();
+      updateClocks();
+      updateWeatherRibbon();
+      setInterval(updateClocks, 1000);
+      setInterval(loadAllTimes, 300000);
+    }
+
+    init();
+  </script>
+</body>
+</html>
