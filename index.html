@@ -102,15 +102,17 @@
       }
     }
 
-    async function loadAndUpdateTime(zone) {
-      const el = document.getElementById(zone.tz.replace(/\//g, '_'));
-      el.textContent = 'Loading...';
-      const time = await fetchTimeForZone(zone.tz);
-      if (!time) {
-        setTimeout(() => loadAndUpdateTime(zone), 5000);
-        return;
-      }
-      zone.currentTime = time;
+    async function loadAllTimes() {
+      const promises = timezones.map(zone => fetchTimeForZone(zone.tz));
+      const results = await Promise.all(promises);
+
+      results.forEach((time, index) => {
+        if (time) {
+          timezones[index].currentTime = time;
+        } else {
+          setTimeout(() => loadAllTimes(), 5000);
+        }
+      });
     }
 
     function updateClocks() {
@@ -120,7 +122,6 @@
           el.textContent = "Loading...";
           return;
         }
-        zone.currentTime = new Date(zone.currentTime.getTime() + 1000);
         el.textContent = zone.currentTime.toLocaleTimeString('en-US', { timeZone: zone.tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
       });
 
@@ -142,13 +143,20 @@
         const secs = Math.floor((diff % 60000) / 1000);
         countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       }
+
+      timezones.forEach(zone => {
+        if (zone.currentTime) {
+          zone.currentTime.setSeconds(zone.currentTime.getSeconds() + 1);
+        }
+      });
     }
 
     async function init() {
       createClockElements();
-      timezones.forEach((zone, i) => setTimeout(() => loadAndUpdateTime(zone), i * 1500));
+      await loadAllTimes();
+      updateClocks();
       setInterval(updateClocks, 1000);
-      setInterval(() => timezones.forEach((zone, i) => setTimeout(() => loadAndUpdateTime(zone), i * 1500)), 300000);
+      setInterval(loadAllTimes, 300000);
     }
 
     init();
