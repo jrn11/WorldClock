@@ -118,6 +118,8 @@
 
     function updateClocks(offsets) {
       const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+
       timezones.forEach(zone => {
         const el = document.getElementById(zone.tz.replace(/\//g, '_'));
         const offset = offsets[zone.tz];
@@ -127,7 +129,6 @@
         }
         const [sign, hh, mm] = offset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
         const offsetMinutes = parseInt(hh) * 60 + parseInt(mm);
-        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
         const tzTime = new Date(utc + (sign === '+' ? 1 : -1) * offsetMinutes * 60000);
         el.textContent = tzTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
       });
@@ -141,9 +142,12 @@
         const [sign, hh, mm] = centralOffset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
         const offsetMinutes = (parseInt(hh) * 60 + parseInt(mm)) * (sign === '+' ? 1 : -1);
         const centralNow = new Date(utc + offsetMinutes * 60000);
-        const nextTarget = new Date(centralNow);
+
+        let nextTarget = new Date(centralNow);
         nextTarget.setHours(centralNow.getHours() < 8 || centralNow.getHours() >= 20 ? 8 : 20, 0, 0, 0);
-        if (centralNow.getHours() >= 20) nextTarget.setDate(nextTarget.getDate() + 1);
+        if (centralNow.getHours() >= 8 && centralNow.getHours() < 20) nextTarget.setHours(20);
+        if (centralNow >= nextTarget) nextTarget.setDate(nextTarget.getDate() + 1);
+
         const diff = nextTarget - centralNow;
         const hrs = Math.floor(diff / 3600000);
         const mins = Math.floor((diff % 3600000) / 60000);
