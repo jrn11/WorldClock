@@ -91,38 +91,42 @@
     }
 
     async function fetchTimeForZone(zone) {
-      const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone}`);
-      if (!res.ok) throw new Error(`Failed to fetch ${zone}`);
-      return await res.json();
+      try {
+        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone}`);
+        if (!res.ok) throw new Error(`Failed to fetch ${zone}`);
+        const data = await res.json();
+        return new Date(data.datetime);
+      } catch (error) {
+        console.error(`Error fetching ${zone}:`, error);
+        return null;
+      }
     }
 
-    async function fetchAllTimes() {
-      const times = {};
-      await Promise.all(timezones.map(async zone => {
-        try {
-          const data = await fetchTimeForZone(zone.tz);
-          times[zone.tz] = new Date(data.datetime);
-        } catch (error) {
-          console.error(`Error fetching ${zone.tz}:`, error);
-          times[zone.tz] = null;
-        }
-      }));
-      return times;
+    async function loadAndUpdateTime(zone) {
+      const el = document.getElementById(zone.tz.replace(/\//g, '_'));
+      el.textContent = 'Loading...';
+      const time = await fetchTimeForZone(zone.tz);
+      if (!time) {
+        setTimeout(() => loadAndUpdateTime(zone), 5000);
+        return;
+      }
+      zone.currentTime = time;
     }
 
-    function updateClocks(times) {
+    function updateClocks() {
+      const centralZone = timezones.find(z => z.tz === "America/Chicago");
+      const centralTime = centralZone.currentTime;
+
       timezones.forEach(zone => {
         const el = document.getElementById(zone.tz.replace(/\//g, '_'));
-        const time = times[zone.tz];
-        if (!time) {
-          el.textContent = "--:--:--";
+        if (!zone.currentTime) {
+          el.textContent = "Loading...";
           return;
         }
-        el.textContent = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        times[zone.tz] = new Date(time.getTime() + 1000);
+        el.textContent = zone.currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        zone.currentTime.setSeconds(zone.currentTime.getSeconds() + 1);
       });
 
-      const centralTime = times["America/Chicago"];
       if (centralTime) {
         const dateStr = centralTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
@@ -143,11 +147,9 @@
 
     async function init() {
       createClockElements();
-      const times = await fetchAllTimes();
-      updateClocks(times);
-      setInterval(async () => {
-        updateClocks(times);
-      }, 1000);
+      timezones.forEach((zone, i) => setTimeout(() => loadAndUpdateTime(zone), i * 1500));
+      setInterval(updateClocks, 1000);
+      setInterval(() => timezones.forEach((zone, i) => setTimeout(() => loadAndUpdateTime(zone), i * 1500)), 300000);
     }
 
     init();
