@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+>
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="refresh" content="300">
@@ -85,7 +86,7 @@
     #weather-content {
       display: inline-block;
       white-space: nowrap;
-      animation: scroll-left 60s linear infinite;
+      animation: scroll-left 90s linear infinite;
     }
 
     @keyframes scroll-left {
@@ -222,19 +223,20 @@
             groupText.push(`⚠️ ${city}: N/A`);
           }
         }
-        displayData.push(`${group.province}: ` + groupText.join(" | "));
+        displayData.push(`${group.province}: ` + groupText.join("   |   "));
       }
       const weatherContent = document.getElementById("weather-content");
-      weatherContent.innerHTML = displayData.join(" || ") + "     " + displayData.join(" || ");
+      weatherContent.innerHTML = displayData.join("   ||   ") + "   ||   " + displayData.join("   ||   ");
     }
 
     async function init() {
       createClockElements();
       await loadAllTimes();
-      updateWeatherRibbon();
+      await updateWeatherRibbon();
       updateClocks();
       setInterval(updateClocks, 1000);
       setInterval(loadAllTimes, 300000);
+      setInterval(updateWeatherRibbon, 300000);
     }
 
     init();
