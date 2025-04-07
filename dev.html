@@ -182,24 +182,50 @@
       });
     }
 
-    function updateWeatherRibbon() {
-      const provinces = {
-        BC: ["Vancouver"],
-        AB: ["Calgary", "Edmonton"],
-        SK: ["Saskatoon", "Regina"],
-        MB: ["Winnipeg", "Thompson", "Churchill"],
-        ON: ["Pickle Lake", "Thunder Bay", "Toronto", "Ottawa"],
-        NS: ["Halifax"],
-        NU: ["Iqaluit", "Igloolik", "Arctic Bay", "Rankin Inlet"],
-        NT: ["Yellowknife"]
+    async function fetchWeather(city) {
+      const url = `https://api.weather.gc.ca/collections/current-observations/items?f=json&limit=1&place_name=${encodeURIComponent(city)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to fetch weather for ${city}`);
+      const data = await res.json();
+      const item = data.features[0].properties;
+      return {
+        city: item.name_en,
+        temp_C: item.temperature.value,
+        condition: item.weather_summary_en
       };
+    }
 
-      const content = Object.entries(provinces).map(([province, cities]) => {
-        return `${province}: ` + cities.map(city => `☁️ ${city}: -5°C`).join(" | ");
-      }).join(" || ");
+    async function updateWeatherRibbon() {
+      const weatherCities = [
+        { province: 'BC', cities: ['Vancouver'] },
+        { province: 'AB', cities: ['Calgary', 'Edmonton'] },
+        { province: 'SK', cities: ['Saskatoon', 'Regina'] },
+        { province: 'MB', cities: ['Winnipeg', 'Thompson', 'Churchill'] },
+        { province: 'ON', cities: ['Pickle Lake', 'Thunder Bay', 'Toronto', 'Ottawa'] },
+        { province: 'NS', cities: ['Halifax'] },
+        { province: 'NU', cities: ['Iqaluit', 'Igloolik', 'Arctic Bay', 'Rankin Inlet'] },
+        { province: 'NT', cities: ['Yellowknife'] }
+      ];
 
+      let displayData = [];
+      for (const group of weatherCities) {
+        const groupText = [];
+        for (const city of group.cities) {
+          try {
+            const { city: cityName, temp_C, condition } = await fetchWeather(city);
+            const symbol = condition.toLowerCase().includes("snow") ? "❄️" :
+                           condition.toLowerCase().includes("rain") ? "🌧️" :
+                           condition.toLowerCase().includes("cloud") ? "☁️" :
+                           condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
+            groupText.push(`${symbol} ${cityName}: ${Math.round(temp_C)}°C`);
+          } catch {
+            groupText.push(`⚠️ ${city}: N/A`);
+          }
+        }
+        displayData.push(`${group.province}: ` + groupText.join(" | "));
+      }
       const weatherContent = document.getElementById("weather-content");
-      weatherContent.innerHTML = content + "     " + content; // Duplicate content for smooth looping
+      weatherContent.innerHTML = displayData.join(" || ") + "     " + displayData.join(" || ");
     }
 
     async function init() {
