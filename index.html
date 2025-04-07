@@ -114,19 +114,18 @@
     }
 
     function updateClocks() {
-      const centralZone = timezones.find(z => z.tz === "America/Chicago");
-      const centralTime = centralZone.currentTime;
-
       timezones.forEach(zone => {
         const el = document.getElementById(zone.tz.replace(/\//g, '_'));
         if (!zone.currentTime) {
           el.textContent = "Loading...";
           return;
         }
-        el.textContent = zone.currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        zone.currentTime.setSeconds(zone.currentTime.getSeconds() + 1);
+        zone.currentTime = new Date(zone.currentTime.getTime() + 1000);
+        el.textContent = zone.currentTime.toLocaleTimeString('en-US', { timeZone: zone.tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
       });
 
+      const centralZone = timezones.find(z => z.tz === "America/Chicago");
+      const centralTime = centralZone.currentTime;
       if (centralTime) {
         const dateStr = centralTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
