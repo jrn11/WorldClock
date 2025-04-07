@@ -73,64 +73,81 @@
 
   <script>
     const timezones = [
-      { label: "Zulu (UTC)", offset: 0 },
-      { label: "Pacific", offset: -8 },
-      { label: "Mountain", offset: -7 },
-      { label: "Central", offset: -6 },
-      { label: "Eastern", offset: -5 },
-      { label: "Atlantic", offset: -4 }
+      { label: "Zulu (UTC)", tz: "Etc/UTC" },
+      { label: "Pacific", tz: "America/Los_Angeles" },
+      { label: "Mountain", tz: "America/Denver" },
+      { label: "Central", tz: "America/Chicago" },
+      { label: "Eastern", tz: "America/New_York" },
+      { label: "Atlantic", tz: "America/Halifax" }
     ];
 
     function createClockElements() {
       document.getElementById("clocks").innerHTML = timezones.map(zone => `
         <div class="clock">
           <div class="zone-label">${zone.label}</div>
-          <div class="time-display" id="${zone.label.replace(/\s+/g, '_')}">Loading...</div>
+          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
         </div>
       `).join('');
     }
 
-    async function fetchUtcTime() {
-      const res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', { cache: 'no-cache' });
-      if (!res.ok) throw new Error('Failed to fetch UTC time');
-      const data = await res.json();
-      return new Date(data.datetime);
+    async function fetchTimeData() {
+      const res = await fetch('https://worldtimeapi.org/api/timezone');
+      if (!res.ok) throw new Error('Failed to fetch timezone data');
+      return await res.json();
     }
 
-    function updateClocks(utcTime) {
-      timezones.forEach(zone => {
-        const localTime = new Date(utcTime.getTime() + zone.offset * 3600000);
-        const el = document.getElementById(zone.label.replace(/\s+/g, '_'));
-        el.textContent = localTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-      });
+    async function fetchZoneOffsets() {
+      const data = {};
+      await Promise.all(timezones.map(async zone => {
+        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone.tz}`);
+        if (!res.ok) throw new Error(`Failed to fetch ${zone.tz}`);
+        const json = await res.json();
+        data[zone.tz] = json.utc_offset;
+      }));
+      return data;
+    }
 
-      const localDate = new Date(utcTime.getTime() + (-6) * 3600000);
-      const dateStr = localDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-      document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
-
-      const countdownEl = document.getElementById('countdown');
-      const centralTime = new Date(utcTime.getTime() + (-6) * 3600000);
-
-      let nextTarget = new Date(centralTime);
-      nextTarget.setHours(centralTime.getHours() < 8 || centralTime.getHours() >= 20 ? 8 : 20, 0, 0, 0);
-      if (centralTime.getHours() >= 8 && centralTime.getHours() < 20) nextTarget.setHours(20);
-      if (centralTime >= nextTarget) nextTarget.setDate(nextTarget.getDate() + 1);
-
-      const diff = nextTarget - centralTime;
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    function parseOffset(offset) {
+      const [sign, hh, mm] = offset.match(/([+-])(\d{2}):(\d{2})/).slice(1);
+      return (parseInt(hh) * 60 + parseInt(mm)) * (sign === '+' ? 1 : -1);
     }
 
     async function init() {
       createClockElements();
-      const utcTime = await fetchUtcTime();
-      updateClocks(utcTime);
+
+      const offsets = await fetchZoneOffsets();
+      const utcRes = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+      const utcData = await utcRes.json();
+      let serverUtc = new Date(utcData.datetime);
+
       setInterval(() => {
-        const updatedUtcTime = new Date(utcTime.getTime() + 1000);
-        utcTime.setTime(updatedUtcTime.getTime());
-        updateClocks(updatedUtcTime);
+        serverUtc = new Date(serverUtc.getTime() + 1000);
+
+        timezones.forEach(zone => {
+          const offset = parseOffset(offsets[zone.tz]);
+          const localTime = new Date(serverUtc.getTime() + offset * 60000);
+          const el = document.getElementById(zone.tz.replace(/\//g, '_'));
+          el.textContent = localTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        });
+
+        const centralOffset = parseOffset(offsets["America/Chicago"]);
+        const centralTime = new Date(serverUtc.getTime() + centralOffset * 60000);
+
+        const dateStr = centralTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
+
+        const countdownEl = document.getElementById('countdown');
+        let nextTarget = new Date(centralTime);
+        nextTarget.setHours(centralTime.getHours() < 8 || centralTime.getHours() >= 20 ? 8 : 20, 0, 0, 0);
+        if (centralTime.getHours() >= 8 && centralTime.getHours() < 20) nextTarget.setHours(20);
+        if (centralTime >= nextTarget) nextTarget.setDate(nextTarget.getDate() + 1);
+
+        const diff = nextTarget - centralTime;
+        const hrs = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
       }, 1000);
     }
 
