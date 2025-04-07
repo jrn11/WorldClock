@@ -59,30 +59,32 @@
     }
 
     #countdown {
-      position: absolute;
+      position: fixed;
       bottom: 40px;
       right: 20px;
       font-size: 1.6rem;
-      opacity: 0.8;
+      background-color: #1b2436;
+      padding: 8px 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      z-index: 1001;
     }
 
     .weather-ribbon {
-      width: 100%;
-      white-space: nowrap;
-      overflow: hidden;
-      background-color: #14203a;
-      color: #fff;
-      font-size: 1.2rem;
       position: fixed;
       bottom: 0;
       left: 0;
+      width: 100%;
+      background-color: #14203a;
+      overflow: hidden;
+      white-space: nowrap;
       padding: 8px;
-      z-index: 10;
+      z-index: 1000;
     }
 
     #weather-content {
       display: inline-block;
-      animation: scroll-left 30s linear infinite;
+      animation: scroll-left 10s linear infinite;
     }
 
     @keyframes scroll-left {
@@ -186,16 +188,15 @@
         { name: "New York", temp: "5°C" },
         { name: "Los Angeles", temp: "15°C" }
       ];
-      const weatherEl = document.getElementById("weather-content");
       const content = cities.map(c => `${c.name}: ${c.temp}`).join(" | ");
-      weatherEl.textContent = content;
+      document.getElementById("weather-content").textContent = content;
     }
 
     async function init() {
       createClockElements();
       await loadAllTimes();
-      updateClocks();
       updateWeatherRibbon();
+      updateClocks();
       setInterval(updateClocks, 1000);
       setInterval(loadAllTimes, 300000);
     }
