@@ -108,7 +108,7 @@
     #info-content {
       display: inline-block;
       white-space: nowrap;
-      animation: scroll-left 90s linear infinite;
+      animation: scroll-left 160s linear infinite;
       will-change: transform;
     }
 
@@ -132,7 +132,7 @@
       "Vancouver", "Calgary", "Edmonton", "Saskatoon", "Regina",
       "Winnipeg", "Thompson", "Churchill", "Pickle Lake", "Thunder Bay",
       "Toronto", "Ottawa", "Halifax", "Iqaluit", "Igloolik",
-      "Arctic Bay", "Rankin Inlet", "Yellowknife"
+      "Arctic Bay", "Rankin Inlet", "Coral Harbour", "Cambridge Bay", "Yellowknife"
     ];
 
     const timezones = [
@@ -228,7 +228,7 @@
           return `${icon} ${city}: ${temp}°C`;
         }));
         const content = results.join("   |   ");
-        document.getElementById("info-content").innerHTML = `${content}   |     |   ${content}   |     |   ${content}`;
+        document.getElementById("info-content").innerHTML = `${content}     |       |     ${content}     |       |     ${content}`;
       } catch (err) {
         document.getElementById("info-content").textContent = "Error loading weather.";
         console.error(err);
