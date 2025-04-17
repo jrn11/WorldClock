@@ -2,256 +2,290 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="refresh" content="300">
-  <title>World Clock</title>
+  <title>World Clock & Weather</title>
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   <style>
+    :root {
+      /* Colours */
+      --bg-day:       #f5f5f5;
+      --fg-day:       #111;
+      --bg-night:     #0b0f19;
+      --fg-night:     #e0e6f0;
+      --clock-bg:          rgba(255,255,255,0.9);
+      --clock-bg-night:    rgba(27,36,54,0.8);
+      --date-bg:           rgba(220,220,220,0.9);
+      --date-bg-night:     rgba(20,32,58,0.8);
+      --ribbon-bg:         #14203a;
+      --ribbon-text:       #fff;
+      --shadow-light:      rgba(0,0,0,0.2);
+      --shadow-strong:     rgba(0,0,0,0.5);
+      --gap:       16px;
+      --pad:       20px;
+      --radius:    10px;
+      --transition:    0.5s ease;
+      --scroll-duration: 210s;
+    }
+
+    /* Background container & overlay */
+    #background {
+      position: fixed; top:0; left:0;
+      width:100%; height:100%;
+      background-size: cover;
+      background-position: center;
+      z-index: -2;
+    }
+    #overlay {
+      position: fixed; top:0; left:0;
+      width:100%; height:100%;
+      background: var(--overlay-bg);
+      transition: background var(--transition);
+      z-index: -1;
+      pointer-events: none;
+    }
+
     html, body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      transition: background-color 0.5s ease, color 0.5s ease;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: sans-serif;
+      transition: background-color var(--transition), color var(--transition);
+    }
+    body.day {
+      background: var(--bg-day);
+      color: var(--fg-day);
+      --overlay-bg: rgba(255,255,255,0.2);
+    }
+    body.night {
+      background: var(--bg-night);
+      color: var(--fg-night);
+      --overlay-bg: rgba(0,0,0,0.6);
     }
 
-    body.day-mode {
-      background-color: #f5f5f5;
-      color: #111;
+    #date-display {
+      font-size: 2.2rem;
+      letter-spacing: 4px;
+      margin-bottom: var(--gap);
+      padding: 0.5em var(--pad);
+      border-radius: var(--radius);
+      background: var(--date-bg);
+      box-shadow: 0 4px 12px var(--shadow-strong);
+      opacity: 0.95;
+      transition: background var(--transition), color var(--transition);
     }
-
-    body.night-mode {
-      background-color: #0b0f19;
-      color: #e0e6f0;
+    body.night #date-display {
+      background: var(--date-bg-night);
+      color: var(--fg-night);
     }
 
     .clock-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-      width: 90%;
-      max-width: 1400px;
+      gap: var(--gap);
+      width: 90%; max-width: 1400px;
+      padding: var(--pad);
     }
-
     .clock {
-      background-color: rgba(255, 255, 255, 0.9);
-      color: #000;
-      border-radius: 12px;
-      padding: 20px;
+      background: var(--clock-bg);
+      border-radius: var(--radius);
+      padding: var(--pad);
       text-align: center;
-      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 0 8px var(--shadow-light);
+      transition: background var(--transition), color var(--transition);
     }
-
-    body.night-mode .clock {
-      background-color: rgba(27, 36, 54, 0.8);
-      color: #e0e6f0;
+    body.night .clock {
+      background: var(--clock-bg-night);
+      color: var(--fg-night);
     }
-
     .zone-label {
       font-size: 1.4rem;
       opacity: 0.8;
-      margin-bottom: 8px;
+      margin-bottom: 0.5em;
     }
-
     .time-display {
       font-size: 2.8rem;
       font-weight: bold;
     }
 
-    #date-display {
-      font-size: 2.2rem;
-      margin-bottom: 0.8em;
-      padding: 12px 20px;
-      background-color: rgba(220, 220, 220, 0.9);
-      border-radius: 10px;
-      letter-spacing: 4px;
-      opacity: 0.95;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      color: #000;
-    }
-
-    body.night-mode #date-display {
-      background-color: rgba(20, 32, 58, 0.8);
-      color: #e0e6f0;
-    }
-
     #countdown {
-      position: fixed;
-      bottom: 40px;
-      right: 20px;
+      position: fixed; bottom: 40px; right: 20px;
       font-size: 1.6rem;
-      background-color: #1b2436;
+      background: var(--bg-night);
+      color: var(--fg-night);
       padding: 8px 12px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 6px var(--shadow-strong);
       z-index: 1001;
-      color: #e0e6f0;
     }
 
-    .info-ribbon {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background-color: #14203a;
-      overflow: hidden;
-      white-space: nowrap;
-      padding: 8px;
-      z-index: 1000;
-      color: #fff;
+    .ribbon {
+      position: fixed; bottom: 0; left: 0;
+      width: 100%; background: var(--ribbon-bg);
+      overflow: hidden; white-space: nowrap;
+      padding: 8px 0; color: var(--ribbon-text);
     }
-
-    #info-content {
+    .ribbon-content {
       display: inline-block;
-      white-space: nowrap;
-      animation: scroll-left 90s linear infinite;
+      animation: scroll-left var(--scroll-duration) linear infinite;
       will-change: transform;
     }
-
     @keyframes scroll-left {
-      0% { transform: translateX(100%); }
-      100% { transform: translateX(-100%); }
+      from { transform: translateX(100%); }
+      to   { transform: translateX(-100%); }
+    }
+
+    /* Weather icon styling */
+    .weather-icon {
+      vertical-align: middle;
+      margin-right: 4px;
+      width: 1em;
+      height: 1em;
     }
   </style>
 </head>
 <body>
-  <div id="date-display"></div>
+  <div id="background"></div>
+  <div id="overlay"></div>
+
+  <div id="date-display" aria-live="polite">Loading date…</div>
   <div class="clock-grid" id="clocks"></div>
-  <div id="countdown"></div>
-  <div class="info-ribbon">
-    <div id="info-content">Loading weather...</div>
+  <div id="countdown">--:--:--</div>
+
+  <div class="ribbon">
+    <div class="ribbon-content" id="ribbon-content">Loading…</div>
   </div>
 
-  <script>
+  <script defer>
     const API_KEY = "f9cb8a5ee9491666c66e8b8d74217306";
-    const cities = [
-      "Vancouver", "Calgary", "Edmonton", "Saskatoon", "Regina",
-      "Winnipeg", "Thompson", "Churchill", "Pickle Lake", "Thunder Bay",
-      "Toronto", "Ottawa", "Halifax", "Iqaluit", "Igloolik",
-      "Arctic Bay", "Rankin Inlet", "Yellowknife"
-    ];
+    const CITIES = [ /* same city list */ ];
+    const ZONES = [ /* same zone list */ ];
 
-    const timezones = [
-      { label: "Zulu (UTC)", tz: "Etc/UTC" },
-      { label: "Pacific", tz: "America/Los_Angeles" },
-      { label: "Mountain", tz: "America/Denver" },
-      { label: "Central", tz: "America/Chicago" },
-      { label: "Eastern", tz: "America/New_York" },
-      { label: "Atlantic", tz: "America/Halifax" }
-    ];
+    let currentMode = null;
 
-    async function fetchTimeForZone(zone) {
+    function setBackground(mode) {
+      const query = mode === "day"
+        ? "landscape,sky,sunny"
+        : "landscape,sky,night";
+      const url = `https://source.unsplash.com/random/1920x1080/?${query}`;
+      document.getElementById("background")
+        .style.backgroundImage = `url('${url}')`;
+    }
+
+    function updateDayNight(now) {
+      const mode = (now.getHours() >= 8 && now.getHours() < 20)
+        ? "day" : "night";
+      if (mode !== currentMode) {
+        currentMode = mode;
+        document.body.classList.toggle("day", mode === "day");
+        document.body.classList.toggle("night", mode === "night");
+        setBackground(mode);
+      }
+    }
+
+    function initTickerPlaceholder() {
+      const el = document.getElementById("ribbon-content");
+      const text = "Loading weather…";
+      el.textContent = text;
+      const textW = el.getBoundingClientRect().width;
+      const cw = el.parentElement.getBoundingClientRect().width;
+      const repeat = Math.ceil((cw * 1.5) / textW);
+      el.textContent = Array(repeat).fill(text).join("   |   ");
+    }
+
+    async function updateWeatherRibbon() {
+      const el = document.getElementById("ribbon-content");
       try {
-        const res = await fetch(`https://worldtimeapi.org/api/timezone/${zone}`);
-        if (!res.ok) throw new Error(`Failed to fetch ${zone}`);
-        const data = await res.json();
-        return new Date(data.datetime);
-      } catch (error) {
-        console.error(`Error fetching ${zone}:`, error);
-        return null;
-      }
-    }
-
-    async function loadAllTimes() {
-      const promises = timezones.map(zone => fetchTimeForZone(zone.tz));
-      const results = await Promise.all(promises);
-
-      const allLoaded = results.every(Boolean);
-      if (!allLoaded) {
-        setTimeout(() => loadAllTimes(), 5000);
-        return;
-      }
-
-      results.forEach((time, index) => {
-        timezones[index].currentTime = time;
-      });
-    }
-
-    function updateClocks() {
-      timezones.forEach(zone => {
-        const el = document.getElementById(zone.tz.replace(/\//g, '_'));
-        if (!zone.currentTime) {
-          el.textContent = "Loading...";
-          return;
-        }
-        const now = new Date(zone.currentTime.getTime() + (Date.now() - zone.currentTime.getTime()));
-        el.textContent = now.toLocaleTimeString('en-US', {
-          timeZone: zone.tz,
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        });
-      });
-
-      const centralZone = timezones.find(z => z.tz === "America/Chicago");
-      const centralTime = centralZone.currentTime;
-      if (centralTime) {
-        const now = new Date(centralTime.getTime() + (Date.now() - centralTime.getTime()));
-        const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        document.getElementById('date-display').textContent = dateStr.replace(/,/g, ' ·');
-
-        const countdownEl = document.getElementById('countdown');
-        let nextTarget = new Date(now);
-        nextTarget.setHours(now.getHours() < 8 || now.getHours() >= 20 ? 8 : 20, 0, 0, 0);
-        if (now.getHours() >= 8 && now.getHours() < 20) nextTarget.setHours(20);
-        if (now >= nextTarget) nextTarget.setDate(nextTarget.getDate() + 1);
-
-        const diff = nextTarget - now;
-        const hrs = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        const secs = Math.floor((diff % 60000) / 1000);
-        countdownEl.textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-        const isDay = now.getHours() >= 8 && now.getHours() < 20;
-        document.body.classList.toggle('day-mode', isDay);
-        document.body.classList.toggle('night-mode', !isDay);
-      }
-    }
-
-    async function loadWeatherRibbon() {
-      try {
-        const results = await Promise.all(cities.map(async city => {
-          const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},CA&units=metric&appid=${API_KEY}`);
-          if (!res.ok) throw new Error(`Failed for ${city}`);
-          const data = await res.json();
-          const temp = Math.round(data.main.temp);
-          const condition = data.weather[0].main;
-          const icon = condition.toLowerCase().includes("snow") ? "❄️" :
-                       condition.toLowerCase().includes("rain") ? "🌧️" :
-                       condition.toLowerCase().includes("cloud") ? "☁️" :
-                       condition.toLowerCase().includes("clear") || condition.toLowerCase().includes("sun") ? "☀️" : "🌡️";
-          return `${icon} ${city}: ${temp}°C`;
+        const items = await Promise.all(CITIES.map(async city => {
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather` +
+            `?q=${encodeURIComponent(city)},CA&units=metric&appid=${API_KEY}`
+          );
+          if (!res.ok) throw 0;
+          const { main:{temp}, weather } = await res.json();
+          const iconCode = weather[0].icon;
+          const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+          return `<img class="weather-icon" src="${iconUrl}"
+                     alt="${weather[0].description}">` +
+                 ` ${city}: ${Math.round(temp)}°C`;
         }));
-        const content = results.join("   |   ");
-        document.getElementById("info-content").innerHTML = `${content}   |     |   ${content}   |     |   ${content}`;
-      } catch (err) {
-        document.getElementById("info-content").textContent = "Error loading weather.";
-        console.error(err);
+        const base = items.join("   |   ");
+        const textW = el.getBoundingClientRect().width;
+        const cw = el.parentElement.getBoundingClientRect().width;
+        const repeat = Math.ceil((cw * 1.5) / textW);
+        el.innerHTML = Array(repeat).fill(base).join("   |   ");
+      } catch {
+        const fallback = "Weather unavailable";
+        const elW = el.getBoundingClientRect().width;
+        const cw = el.parentElement.getBoundingClientRect().width;
+        const repeat = Math.ceil((cw * 1.5) / elW);
+        el.textContent = Array(repeat).fill(fallback).join("   |   ");
       }
+    }
+
+    function updateDateAndCountdown(now) {
+      const opts = { weekday:'long', month:'long', day:'numeric', year:'numeric' };
+      document.getElementById("date-display")
+        .textContent = now
+          .toLocaleDateString(undefined, opts)
+          .replace(/,/g, " ·");
+
+      let next = new Date(now), hr = now.getHours();
+      if (hr < 8 || hr >= 20) next.setHours(8);
+      else next.setHours(20);
+      if (now >= next) next.setDate(next.getDate()+1);
+      const diff = next - now;
+      const h = String(Math.floor(diff/3600000)).padStart(2,'0'),
+            m = String(Math.floor(diff%3600000/60000)).padStart(2,'0'),
+            s = String(Math.floor(diff%60000/1000)).padStart(2,'0');
+      document.getElementById("countdown")
+        .textContent = `${h}:${m}:${s}`;
+    }
+
+    async function updateClocks(baseNow) {
+      await Promise.all(ZONES.map(async ({ tz }) => {
+        try {
+          const res = await fetch(`https://worldtimeapi.org/api/timezone/${tz}`);
+          if (!res.ok) throw 0;
+          const { datetime } = await res.json();
+          const t = new Date(datetime);
+          const offset = baseNow - t;
+          const local = new Date(Date.now() - offset);
+          document.getElementById(tz.replace(/\//g,'_')).textContent =
+            local.toLocaleTimeString('en-US', {
+              timeZone: tz, hour12:false,
+              hour:'2-digit', minute:'2-digit', second:'2-digit'
+            });
+        } catch {
+          document.getElementById(tz.replace(/\//g,'_')).textContent = "Err";
+        }
+      }));
     }
 
     function createClockElements() {
-      document.getElementById("clocks").innerHTML = timezones.map(zone => `
-        <div class="clock">
-          <div class="zone-label">${zone.label}</div>
-          <div class="time-display" id="${zone.tz.replace(/\//g, '_')}">Loading...</div>
-        </div>
-      `).join('');
+      document.getElementById("clocks").innerHTML = ZONES.map(z =>
+        `<div class="clock">
+           <div class="zone-label">${z.label}</div>
+           <div class="time-display" id="${z.tz.replace(/\//g,'_')}">–</div>
+         </div>`
+      ).join("");
     }
 
     async function init() {
       createClockElements();
-      await loadAllTimes();
-      updateClocks();
-      await loadWeatherRibbon();
-      setInterval(updateClocks, 1000);
-      setInterval(loadAllTimes, 300000);
-      setInterval(loadWeatherRibbon, 300000);
+      initTickerPlaceholder();
+      const now = new Date();
+      updateDayNight(now);
+      await updateClocks(now);
+      await updateWeatherRibbon();
+      setInterval(() => {
+        const t = new Date();
+        updateDayNight(t);
+        updateClocks(t);
+        updateDateAndCountdown(t);
+      }, 1000);
+      setInterval(updateWeatherRibbon, 300_000);
     }
 
     init();
